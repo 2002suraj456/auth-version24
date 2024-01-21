@@ -1,15 +1,17 @@
 import express from "express";
 import prisma from "../../../db";
-import { loginUserSchema, signupUserSchema } from "../../models";
+import { loginUserSchema, signupUserSchema ,forgetPasswordSchema} from "../../models";
 import {
   UserAlreadyExistsError,
   UserNotExistError,
   UserPasswordIncorrectError,
+  UserTokenInvalidError,
   handleUserSignupError,
-  handleUserLoginError
+  handleUserLoginError,
+  handleUserForgetPasswordError
 } from "./error";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import jwt ,{ JwtPayload }from "jsonwebtoken";
 
 export async function handleUserSignup(
   req: express.Request,
@@ -79,4 +81,45 @@ export async function handleUserLogin(
 }
 
 // TODO
-export async function handleUserForgetPassword() {}
+export async function handleUserForgetPassword(
+  req: express.Request,
+  res: express.Response
+  ) {
+    try {
+      const { token, newPassword } = forgetPasswordSchema.parse(req.body);
+  
+      // Verify the reset token
+      const decodedToken = jwt.verify(token, process.env.SECRET_KEY as string)as JwtPayload;
+  
+      if (!decodedToken || !decodedToken.email) {
+        throw new UserTokenInvalidError();
+      }
+  
+      const user = await prisma.user.findUnique({
+        where: { email: decodedToken.email },
+      });
+  
+      
+  
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+  
+      // Update the user's password and clear the reset token fields
+      await prisma.user.update({
+        where: { email: decodedToken.email },
+        data: {
+          password: hashedPassword,
+        },
+      });
+  
+      res.status(200).json({
+        status: "success",
+        message: "Password successfully reset",
+      });
+  
+    } catch (err) {
+      handleUserForgetPasswordError(res, err);
+    }
+  
+
+  }
