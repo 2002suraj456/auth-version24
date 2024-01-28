@@ -10,9 +10,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-model User{
-
+model User {
   user_id Int @id @default(autoincrement())
 
   email String @unique
@@ -21,18 +19,17 @@ model User{
 
   password String
 
+  university String
+
+  mobile String
+
   createdAt DateTime @default(now())
+
+  participation Event[]
 }
 
-
-// model Tweet{
-//   tweet_id Int @id @default(autoincrement())
-
-//   createdate DateTime @default(now())
-
-//   text String
-
-//   userid Int
-
-//   user User @relation(fields: [userid], references: [user_id])
-// }
+model Event {
+  id           String @id @unique @default(cuid())
+  name         String @unique
+  participants User[]
+}

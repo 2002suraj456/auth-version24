@@ -4,6 +4,8 @@ export const signupUserSchema = zod.object({
   name: zod.string().min(1).max(100),
   email: zod.string().email(),
   password: zod.string().min(8).max(100),
+  university: zod.string().min(1).max(100),
+  mobile: zod.string().length(10),
 });
 
 
