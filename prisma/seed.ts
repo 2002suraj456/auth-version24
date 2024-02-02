@@ -64,35 +64,58 @@ async function main() {
   //     },
   //   });
 
-  const event = await prisma.event.findUnique({
-    where: {
-      name: "Event 2",
-    },
-  });
+  // const event = await prisma.event.findUnique({
+  //   where: {
+  //     name: "Event 2",
+  //   },
+  // });
 
-  console.log(event);
-  console.log("--------------------------------------------------");
-  const updateduser = await prisma.user.update({
-    where: {
-      email: "surajsoren456@gmail.com",
-    },
-    data: {
-      participation: {
-        connect: { id: event?.id },
-      },
-    },
-  });
+  // console.log(event);
+  // console.log("--------------------------------------------------");
+  // const updateduser = await prisma.user.update({
+  //   where: {
+  //     email: "surajsoren456@gmail.com",
+  //   },
+  //   data: {
+  //     participation: {
+  //       connect: { id: event?.id },
+  //     },
+  //   },
+  // });
 
-  const user = await prisma.user.findUnique({
-    where: {
-      email: "surajsoren456@gmail.com",
-    },
-    include: {
-      participation: true,
-    },
-  });
+  // const user = await prisma.user.findUnique({
+  //   where: {
+  //     email: "surajsoren456@gmail.com",
+  //   },
+  //   include: {
+  //     participation: true,
+  //   },
+  // });
 
-  console.log(user);
+  // console.log(user);
+
+  const eventlist = [
+    "CodeBlitz",
+    "Cryptic Coder",
+    "Immerse Craft",
+    "Decode Craft",
+    "Game Fiesta",
+    "Squid Quiz",
+    "Dev Day",
+    "Heads Up",
+    "Cupocalyse Combat",
+    "Map Quest",
+  ];
+
+  await Promise.all(
+    eventlist.map(async (event) => {
+      await prisma.event.create({
+        data: {
+          name: event,
+        },
+      });
+    })
+  );
 }
 
 main()

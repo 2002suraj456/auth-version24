@@ -201,14 +201,8 @@ export async function handleUserGet(
   req: express.Request,
   res: express.Response
 ) {
-  console.log(res.locals.context);
+  const email = res.locals.context.email;
   try {
-    const { email } = z
-      .object({
-        email: z.string().email(),
-      })
-      .parse(req.body);
-
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
@@ -297,14 +291,56 @@ export async function authenticate(
   if (!_jwttoken) {
     return res.status(401).send("Token Missing.");
   }
-
-  console.log(_jwttoken);
-  console.log(process.env.SECRET_KEY);
   try {
-    const decoded = jwt.verify(_jwttoken, process.env.SECRET_KEY!);
-    res.locals.context = decoded;
+    jwt.verify(_jwttoken, process.env.SECRET_KEY!, (err, decoded) => {
+      if (err) {
+        throw new UserTokenInvalidError();
+      }
+      res.locals.context = decoded;
+    });
   } catch (err) {
     return res.status(401).send("Unauthorized");
   }
   next();
+}
+
+export async function handleEventRegister(
+  req: express.Request,
+  res: express.Response
+) {
+  const email = res.locals.context.email;
+
+  try {
+    const { event } = z
+      .object({
+        event: z.string(),
+      })
+      .parse(req.body);
+
+    const _event = await prisma.event.findUnique({
+      where: {
+        name: event,
+      },
+    });
+
+    if (!_event) {
+      res.status(404).send("Event not found");
+      return;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: {
+        email: email,
+      },
+      data: {
+        participation: {
+          connect: { id: _event.id },
+        },
+      },
+    });
+
+    res.status(200).json({ status: "success", updatedUser });
+  } catch (error) {
+    res.status(500).send("Internal server error");
+  }
 }

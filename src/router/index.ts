@@ -9,6 +9,7 @@ import {
   handleUserGet,
   handleEventGet,
   authenticate,
+  handleEventRegister,
 } from "../controllers/user";
 import jwt from "jsonwebtoken";
 
@@ -29,9 +30,11 @@ apirouter.post("/verifyotp", handleUserVerifyOTP);
 
 apirouter.post("/resetpassword", handleUserResetPassword);
 
-apirouter.get("/user",authenticate, handleUserGet);
+apirouter.get("/user", authenticate, handleUserGet);
 
 apirouter.get("/event", handleEventGet);
+
+apirouter.post("/register", authenticate, handleEventRegister);
 
 apirouter.get("/isauthenticated", (req, res) => {
   const cookie = req.headers.cookie;
