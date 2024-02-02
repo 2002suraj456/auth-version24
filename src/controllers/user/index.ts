@@ -19,6 +19,7 @@ import jwt, { JwtPayload } from "jsonwebtoken";
 import { randomInt } from "crypto";
 import client from "../../../db/redis";
 import { z } from "zod";
+import { transport } from "../../nodemailer";
 
 export async function handleUserSignup(
   req: express.Request,
@@ -133,22 +134,41 @@ export async function handleUserGenerateOTP(
   req: express.Request,
   res: express.Response
 ) {
-  const { email } = z
-    .object({
-      email: z.string().email(),
-    })
-    .parse(req.body);
-  const _otp = randomInt(100000, 999999).toString();
   try {
+    const { email } = z
+      .object({
+        email: z.string().email(),
+      })
+      .parse(req.body); 
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new UserNotExistError(email);
+    }
+
+    const _otp = randomInt(100000, 999999).toString();
+
     await client.set(email, _otp);
+
+    const _mailOpt = {
+      from: '"Version24" <noreply@innovac23.tech>',
+      to: email,
+      subject: "Version 24 Account Recovery",
+      html: `OTP for forget password : ${_otp}`,
+    };
+
+    const mailresponse = await transport.sendMail(_mailOpt);
+    res.status(200).send({
+      status: "success",
+      message: "OTP sent.",
+    });
   } catch (err) {
-    res.status(500).send("Internal server error");
-    return;
+    console.log(err);
+    return res.status(500).send("Internal server error");
   }
-
-  // TODO: send otp to email
-
-  res.status(200).send("otp generated");
 }
 
 export async function handleUserVerifyOTP(
@@ -177,12 +197,19 @@ export async function handleUserResetPassword(
   res: express.Response
 ) {
   try {
-    const { email, password } = z
+    const { email, password, otp } = z
       .object({
         email: z.string().email(),
         password: z.string().min(8),
+        otp: z.string().length(6),
       })
       .parse(req.body);
+
+    const _otp = await client.get(email);
+
+    if (otp !== _otp) {
+      return res.status(400).send("Wrong OTP");
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
