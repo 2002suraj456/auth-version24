@@ -1,10 +1,6 @@
 import express from "express";
 import prisma from "../../../db/prisma";
-import {
-  loginUserSchema,
-  signupUserSchema,
-  forgetPasswordSchema,
-} from "../../models";
+import { loginUserSchema, signupUserSchema } from "../../models";
 import {
   UserAlreadyExistsError,
   UserNotExistError,
@@ -12,10 +8,9 @@ import {
   UserTokenInvalidError,
   handleUserSignupError,
   handleUserLoginError,
-  handleUserForgetPasswordError,
 } from "./error";
 import bcrypt from "bcrypt";
-import jwt, { JwtPayload } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import { randomInt } from "crypto";
 import client from "../../../db/redis";
 import { z } from "zod";
@@ -26,7 +21,7 @@ export async function handleUserSignup(
   res: express.Response
 ) {
   try {
-    const { email, password, name, mobile, university } =
+    const { email, password, name, mobile, university, rollno } =
       signupUserSchema.parse(req.body);
 
     const user = await prisma.user.findFirst({
@@ -39,18 +34,26 @@ export async function handleUserSignup(
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = await prisma.user.create({
-      data: { name, email, password: hashedPassword, mobile, university },
+    await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        mobile,
+        university,
+        rollno,
+      },
     });
 
-    // TODO: change the json object
-    res.status(201).json({ status: "success", user, message: "User created" });
+    return res
+      .status(201)
+      .json({ status: "success", message: "Successfully Signed Up" });
   } catch (error) {
+    console.error(error);
     handleUserSignupError(res, error);
   }
 }
 
-// TODO
 export async function handleUserLogin(
   req: express.Request,
   res: express.Response
@@ -88,48 +91,6 @@ export async function handleUserLogin(
   }
 }
 
-// TODO
-export async function handleUserForgetPassword(
-  req: express.Request,
-  res: express.Response
-) {
-  try {
-    const { token, newPassword } = forgetPasswordSchema.parse(req.body);
-
-    // Verify the reset token
-    const decodedToken = jwt.verify(
-      token,
-      process.env.SECRET_KEY as string
-    ) as JwtPayload;
-
-    if (!decodedToken || !decodedToken.email) {
-      throw new UserTokenInvalidError();
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: decodedToken.email },
-    });
-
-    // Hash the new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    // Update the user's password and clear the reset token fields
-    await prisma.user.update({
-      where: { email: decodedToken.email },
-      data: {
-        password: hashedPassword,
-      },
-    });
-
-    res.status(200).json({
-      status: "success",
-      message: "Password successfully reset",
-    });
-  } catch (err) {
-    handleUserForgetPasswordError(res, err);
-  }
-}
-
 export async function handleUserGenerateOTP(
   req: express.Request,
   res: express.Response
@@ -137,9 +98,9 @@ export async function handleUserGenerateOTP(
   try {
     const { email } = z
       .object({
-        email: z.string().email(),
+        email: z.string().email("Invalid email format."),
       })
-      .parse(req.body); 
+      .parse(req.body);
 
     const user = await prisma.user.findUnique({
       where: { email },
@@ -160,14 +121,31 @@ export async function handleUserGenerateOTP(
       html: `OTP for forget password : ${_otp}`,
     };
 
-    const mailresponse = await transport.sendMail(_mailOpt);
-    res.status(200).send({
+    await transport.sendMail(_mailOpt);
+
+    return res.status(200).send({
       status: "success",
       message: "OTP sent.",
     });
   } catch (err) {
-    console.log(err);
-    return res.status(500).send("Internal server error");
+    if (err instanceof UserNotExistError) {
+      return res.status(404).send({
+        status: "error",
+        message: err.message,
+      });
+    }
+
+    if (err instanceof z.ZodError) {
+      return res.status(400).send({
+        status: "error",
+        message: err.errors[0].message,
+      });
+    }
+
+    return res.status(500).send({
+      status: "error",
+      message: "Internal server error",
+    });
   }
 }
 
@@ -175,20 +153,39 @@ export async function handleUserVerifyOTP(
   req: express.Request,
   res: express.Response
 ) {
-  const { otp, email } = z
-    .object({
-      otp: z.string().length(6),
-      email: z.string().email(),
-    })
-    .parse(req.body);
+  try {
+    const { otp, email } = z
+      .object({
+        otp: z.string().length(6, "OTP must be 6 digit"),
+        email: z.string().email("Invalid email format."),
+      })
+      .parse(req.body);
 
-  const _otp = await client.get(email);
+    const _otp = await client.get(email);
 
-  if (otp === _otp) {
-    res.status(200).send("Otp verfied successfully");
-    return;
-  } else {
-    res.status(400).send("Wrong OTP");
+    if (otp === _otp) {
+      return res.status(200).send({
+        status: "success",
+        message: "OTP verified successfully",
+      });
+    } else {
+      return res.status(400).send({
+        status: "error",
+        message: "Wrong OTP",
+      });
+    }
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).send({
+        status: "error",
+        message: err.errors[0].message,
+      });
+    }
+
+    return res.status(500).send({
+      status: "error",
+      message: "Internal server error",
+    });
   }
 }
 
@@ -199,9 +196,9 @@ export async function handleUserResetPassword(
   try {
     const { email, password, otp } = z
       .object({
-        email: z.string().email(),
-        password: z.string().min(8),
-        otp: z.string().length(6),
+        email: z.string().email("Invalid email format."),
+        password: z.string().min(8, "Too small password").max(100),
+        otp: z.string().length(6, "OTP must be 6 digit"),
       })
       .parse(req.body);
 
@@ -218,9 +215,22 @@ export async function handleUserResetPassword(
       data: { password: hashedPassword },
     });
 
-    res.status(200).send("Password reset successfully");
+    return res.status(200).send({
+      status: "success",
+      message: "Password updated successfully",
+    });
   } catch (error) {
-    res.status(500).send("Internal server error");
+    if (error instanceof z.ZodError) {
+      return res.status(400).send({
+        status: "error",
+        message: error.errors[0].message,
+      });
+    }
+
+    return res.status(500).send({
+      status: "error",
+      message: "Internal server error",
+    });
   }
 }
 
@@ -243,6 +253,13 @@ export async function handleUserGet(
 
     res.status(200).json({ status: "success", user });
   } catch (error) {
+    if (error instanceof UserNotExistError) {
+      return res.status(404).send({
+        status: "error",
+        message: error.message,
+      });
+    }
+
     res.status(500).json({ status: "error", message: "Internal server error" });
   }
 }
@@ -254,7 +271,7 @@ export async function handleEventGet(
   try {
     const { email } = z
       .object({
-        email: z.string().email(),
+        email: z.string().email("Invalid email format."),
       })
       .parse(req.body);
 
@@ -269,9 +286,24 @@ export async function handleEventGet(
       throw new UserNotExistError(email);
     }
 
-    res.status(200).json({ status: "success", user });
+    return res.status(200).json({ status: "success", user });
   } catch (error) {
-    res.status(500).json({ status: "error", message: "Internal server error" });
+    if (error instanceof z.ZodError) {
+      return res
+        .status(400)
+        .json({ status: "error", message: error.errors[0].message });
+    }
+
+    if (error instanceof UserNotExistError) {
+      return res.status(404).send({
+        status: "error",
+        message: error.message,
+      });
+    }
+
+    return res
+      .status(500)
+      .json({ status: "error", message: "Internal server error" });
   }
 }
 
@@ -295,9 +327,17 @@ export async function handleEventParticipantsGet(
       },
     });
 
-    res.status(200).json({ status: "success", participants });
+    return res.status(200).json({ status: "success", participants });
   } catch (error) {
-    res.status(500).json({ status: "error", message: "Internal server error" });
+    if (error instanceof z.ZodError) {
+      return res
+        .status(400)
+        .json({ status: "error", message: error.errors[0].message });
+    }
+
+    return res
+      .status(500)
+      .json({ status: "error", message: "Internal server error" });
   }
 }
 
@@ -306,38 +346,49 @@ export async function authenticate(
   res: express.Response,
   next: express.NextFunction
 ) {
-  const cookie = req.headers.cookie;
-  let _jwttoken;
-  cookie?.split(";").forEach((cookie) => {
-    if (cookie.startsWith("jwt")) {
-      _jwttoken = cookie.split("=")[1];
-      return;
-    }
-  });
-
-  if (!_jwttoken) {
-    return res.status(401).send("Token Missing.");
-  }
   try {
+    const cookie = req.headers.cookie;
+    let _jwttoken;
+    cookie?.split(";").forEach((cookie) => {
+      if (cookie.startsWith("jwt")) {
+        _jwttoken = cookie.split("=")[1];
+        return;
+      }
+    });
+
+    if (!_jwttoken) {
+      throw new UserTokenInvalidError();
+    }
+
     jwt.verify(_jwttoken, process.env.SECRET_KEY!, (err, decoded) => {
       if (err) {
         throw new UserTokenInvalidError();
       }
       res.locals.context = decoded;
     });
+    next();
   } catch (err) {
-    return res.status(401).send("Unauthorized");
+    if (err instanceof UserTokenInvalidError) {
+      return res.status(401).send({
+        status: "error",
+        message: err.message,
+      });
+    }
+
+    return res.status(500).send({
+      status: "error",
+      message: "Internal server error",
+    });
   }
-  next();
 }
 
 export async function handleEventRegister(
   req: express.Request,
   res: express.Response
 ) {
-  const email = res.locals.context.email;
-
   try {
+    const email = res.locals.context.email;
+
     const { event } = z
       .object({
         event: z.string(),
@@ -351,8 +402,10 @@ export async function handleEventRegister(
     });
 
     if (!_event) {
-      res.status(404).send("Event not found");
-      return;
+      return res.status(404).json({
+        status: "error",
+        message: "Event not found",
+      });
     }
 
     const updatedUser = await prisma.user.update({
@@ -368,6 +421,14 @@ export async function handleEventRegister(
 
     res.status(200).json({ status: "success", updatedUser });
   } catch (error) {
-    res.status(500).send("Internal server error");
+    if (error instanceof z.ZodError) {
+      return res
+        .status(400)
+        .json({ status: "error", message: error.errors[0].message });
+    }
+
+    return res
+      .status(500)
+      .json({ status: "error", message: "Internal server error" });
   }
 }

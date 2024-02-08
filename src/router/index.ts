@@ -2,7 +2,6 @@ import { Router } from "express";
 import {
   handleUserSignup,
   handleUserLogin,
-  handleUserForgetPassword,
   handleUserGenerateOTP,
   handleUserVerifyOTP,
   handleUserResetPassword,
@@ -11,18 +10,15 @@ import {
   authenticate,
   handleEventRegister,
 } from "../controllers/user";
-import jwt from "jsonwebtoken";
 
 const apirouter = Router();
 
-apirouter.get("test", (req, res) => {
+apirouter.get("/test", (req, res) => {
   res.send("test");
 });
 apirouter.post("/login", handleUserLogin);
 
 apirouter.post("/signup", handleUserSignup);
-
-apirouter.post("/forgetPassword", handleUserForgetPassword);
 
 apirouter.post("/generateotp", handleUserGenerateOTP);
 
@@ -36,29 +32,10 @@ apirouter.get("/event", handleEventGet);
 
 apirouter.post("/register", authenticate, handleEventRegister);
 
-apirouter.get("/isauthenticated", (req, res) => {
-  const cookie = req.headers.cookie;
-  let _jwttoken;
-  cookie?.split(";").forEach((cookie) => {
-    if (cookie.startsWith("jwt")) {
-      _jwttoken = cookie.split("=")[1];
-      return;
-    }
-  });
+apirouter.get("/isauthenticated", authenticate, (req, res) => {
+  const user = res.locals.context;
 
-  if (!_jwttoken) {
-    return res.status(401).send("Token Missing.");
-  }
-
-  console.log(_jwttoken);
-  console.log(process.env.SECRET_KEY);
-  try {
-    const decoded = jwt.verify(_jwttoken, process.env.SECRET_KEY!);
-    console.log(decoded);
-  } catch (err) {
-    return res.status(401).send("Unauthorized");
-  }
-  res.status(200).send("Authorized");
+  res.status(200).json({ status: "success", user });
 });
 
 export default apirouter;

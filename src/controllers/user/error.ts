@@ -4,7 +4,7 @@ import { z } from "zod";
 
 export class UserAlreadyExistsError extends Error {
   constructor(email: string) {
-    super(`User with email ${email} already exists`);
+    super(`Email already registered.`);
     this.name = "UserAlreadyExistsError";
     Object.setPrototypeOf(this, UserAlreadyExistsError.prototype);
   }
@@ -12,7 +12,7 @@ export class UserAlreadyExistsError extends Error {
 
 export class UserNotExistError extends Error {
   constructor(email: string) {
-    super(`User with email ${email} does not exists`);
+    super(`User with ${email} not registered.`);
     this.name = "UserNotExist";
     Object.setPrototypeOf(this, UserNotExistError.prototype);
   }
@@ -20,7 +20,7 @@ export class UserNotExistError extends Error {
 
 export class UserPasswordIncorrectError extends Error {
   constructor(email: string) {
-    super(`User with email ${email} password is incorrect`);
+    super(`Incorrect password.`);
     this.name = "UserPasswordIncorrect";
     Object.setPrototypeOf(this, UserPasswordIncorrectError.prototype);
   }
@@ -28,54 +28,65 @@ export class UserPasswordIncorrectError extends Error {
 
 export class UserTokenInvalidError extends Error {
   constructor() {
-    super('User token is invalid');
-    this.name = 'UserTokenInvalidError';
+    super("User not logged in.");
+    this.name = "UserTokenInvalidError";
     Object.setPrototypeOf(this, UserTokenInvalidError.prototype);
   }
 }
 
 export function handleUserSignupError(res: express.Response, error: any) {
-  if (
-    error instanceof z.ZodError ||
-    error instanceof Prisma.PrismaClientKnownRequestError ||
-    error instanceof UserAlreadyExistsError
-  ) {
-    res.status(400).json({
+  if (error instanceof UserAlreadyExistsError) {
+    return res.status(400).json({
       status: "error",
       error: error.message,
     });
-  } else {
-    res.status(500).json({
+  }
+
+  if (error instanceof z.ZodError) {
+    return res.status(400).json({
       status: "error",
-      error: "Something went wrong",
+      error: error.errors[0].message,
     });
   }
+
+  return res.status(500).json({
+    status: "error",
+    error: "Something went wrong",
+  });
 }
 
 export function handleUserLoginError(res: express.Response, error: any) {
   if (
-    error instanceof z.ZodError ||
-    error instanceof Prisma.PrismaClientKnownRequestError ||
     error instanceof UserNotExistError ||
     error instanceof UserPasswordIncorrectError
   ) {
-    res.status(400).json({
+    return res.status(400).json({
       status: "error",
       error: error.message,
     });
-  } else {
-    res.status(500).json({
+  }
+
+  if (error instanceof z.ZodError) {
+    return res.status(400).json({
       status: "error",
-      error: "Something went wrong",
+      error: error.errors[0].message,
     });
   }
+
+  return res.status(500).json({
+    status: "error",
+    error: "Something went wrong",
+  });
 }
 
-export function  handleUserForgetPasswordError(res: express.Response, error: any) {
+export function handleUserForgetPasswordError(
+  res: express.Response,
+  error: any
+) {
   if (
     error instanceof z.ZodError ||
     error instanceof Prisma.PrismaClientKnownRequestError ||
-    error instanceof  UserTokenInvalidError
+    error instanceof UserTokenInvalidError
   ) {
     res.status(400).json({
       status: "error",

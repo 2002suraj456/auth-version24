@@ -23,6 +23,8 @@ model User {
 
   mobile String
 
+  rollno String
+
   createdAt DateTime @default(now())
 
   participation Event[]
