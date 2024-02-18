@@ -34,6 +34,14 @@ export class UserTokenInvalidError extends Error {
   }
 }
 
+export class UserSpecificError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UserSpecificError";
+    Object.setPrototypeOf(this, UserSpecificError.prototype);
+  }
+}
+
 export function handleUserSignupError(res: express.Response, error: any) {
   if (error instanceof UserAlreadyExistsError) {
     return res.status(400).json({

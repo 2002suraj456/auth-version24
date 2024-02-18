@@ -8,6 +8,7 @@ import {
   UserTokenInvalidError,
   handleUserSignupError,
   handleUserLoginError,
+  UserSpecificError,
 } from "./error";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -243,7 +244,7 @@ export async function handleUserGet(
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
-        participation: true,
+        event: true,
       },
     });
 
@@ -386,47 +387,60 @@ export async function handleEventRegister(
   req: express.Request,
   res: express.Response
 ) {
+  const currentUser = res.locals.context.email;
   try {
-    const email = res.locals.context.email;
-
-    const { event } = z
+    const { eventName, teamName, emails } = z
       .object({
-        event: z.string(),
+        eventName: z.string(),
+        teamName: z.string().optional(),
+        emails: z.array(z.string().email("Invalid email format.")),
       })
       .parse(req.body);
 
-    const _event = await prisma.event.findUnique({
-      where: {
-        name: event,
-      },
-    });
-
-    if (!_event) {
-      return res.status(404).json({
-        status: "error",
-        message: "Event not found",
-      });
+    if (!teamName && emails.length > 1) {
+      throw new UserSpecificError("Team name is required");
     }
 
-    const updatedUser = await prisma.user.update({
-      where: {
-        email: email,
-      },
+    if (!emails.includes(currentUser)) {
+      throw new UserSpecificError("You must be in the team");
+    }
+
+    const eventTransaction = await prisma.$transaction(
+      emails.map((email) =>
+        prisma.event.create({
       data: {
-        participation: {
-          connect: { id: _event.id },
+            eventName,
+            teamName,
+            participants: {
+              connect: {
+                email,
+              },
         },
       },
-    });
+        })
+      )
+    );
 
-    res.status(200).json({ status: "success", updatedUser });
-  } catch (error) {
+    console.log(eventTransaction);
+
+    res.status(200).json({ status: "success" });
+  } catch (error: any) {
+    console.error(error);
+    if (error.code === "P2002") {
+      return res
+        .status(400)
+        .json({ status: "error", message: "Teammates already registered" });
+    }
+
     if (error instanceof z.ZodError) {
       return res
         .status(400)
         .json({ status: "error", message: error.errors[0].message });
     }
 
+    if (error instanceof UserSpecificError) {
+      return res.status(400).json({ status: "error", message: error.message });
+    }
     return res
       .status(500)
       .json({ status: "error", message: "Internal server error" });
