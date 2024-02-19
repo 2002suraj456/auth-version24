@@ -62,7 +62,10 @@ export async function handleUserLogin(
   try {
     const { email, password } = loginUserSchema.parse(req.body);
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: { event: true },
+    });
 
     if (!user) {
       throw new UserNotExistError(email);
@@ -83,9 +86,12 @@ export async function handleUserLogin(
       maxAge: Number(process.env.JWT_EXPIRES_IN),
     });
 
+    const { password: _, createdAt, mobile, ...restUser } = user;
+
     res.status(200).json({
       status: "success",
       message: "User logged in",
+      user: restUser,
     });
   } catch (err) {
     handleUserLoginError(res, err);
@@ -252,7 +258,9 @@ export async function handleUserGet(
       throw new UserNotExistError(email);
     }
 
-    res.status(200).json({ status: "success", user });
+    const { password: _, createdAt, mobile, ...restUser } = user;
+
+    res.status(200).json({ status: "success", user: restUser });
   } catch (error) {
     if (error instanceof UserNotExistError) {
       return res.status(404).send({
