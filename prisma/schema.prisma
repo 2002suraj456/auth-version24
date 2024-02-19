@@ -25,9 +25,11 @@ model User {
 
   createdAt DateTime @default(now())
 
+  id Int @default(autoincrement())
+
   event Event[]
 
-  @@id([email])
+  @@id([id])
 }
 
 model Event {
