@@ -96,12 +96,12 @@ export function handleUserForgetPasswordError(
     error instanceof Prisma.PrismaClientKnownRequestError ||
     error instanceof UserTokenInvalidError
   ) {
-    res.status(400).json({
+    return res.status(400).json({
       status: "error",
       error: error.message,
     });
   } else {
-    res.status(500).json({
+    return res.status(500).json({
       status: "error",
       error: error.message,
     });

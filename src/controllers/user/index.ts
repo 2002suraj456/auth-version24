@@ -88,7 +88,7 @@ export async function handleUserLogin(
 
     const { password: _, createdAt, mobile, ...restUser } = user;
 
-    res.status(200).json({
+    return res.status(200).json({
       status: "success",
       message: "User logged in",
       user: restUser,
@@ -183,7 +183,7 @@ export async function handleUserVerifyOTP(
     }
   } catch (err) {
     if (err instanceof z.ZodError) {
-      res.status(400).send({
+      return res.status(400).send({
         status: "error",
         message: err.errors[0].message,
       });
@@ -260,7 +260,7 @@ export async function handleUserGet(
 
     const { password: _, createdAt, mobile, ...restUser } = user;
 
-    res.status(200).json({ status: "success", user: restUser });
+    return res.status(200).json({ status: "success", user: restUser });
   } catch (error) {
     if (error instanceof UserNotExistError) {
       return res.status(404).send({
@@ -269,7 +269,7 @@ export async function handleUserGet(
       });
     }
 
-    res.status(500).json({ status: "error", message: "Internal server error" });
+    return res.status(500).json({ status: "error", message: "Internal server error" });
   }
 }
 
