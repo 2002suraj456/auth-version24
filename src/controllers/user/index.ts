@@ -46,16 +46,24 @@ export async function handleUserSignup(
       },
     });
 
+    const JWTtoken = jwt.sign({ email }, process.env.SECRET_KEY as string, {
+      expiresIn: process.env.JWT_EXPIRES_IN,
+    });
+
+    res.cookie("jwt", JWTtoken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: Number(process.env.JWT_EXPIRES_IN),
+    });
+
     const { password: _, createdAt, mobile: __, ...restUser } = user;
-    return res
-      .status(201)
-      .json({
+
+    return res.status(200).json({
         status: "success",
         message: "Successfully Signed Up",
         user: restUser,
       });
   } catch (error) {
-    console.error(error);
     handleUserSignupError(res, error);
   }
 }
