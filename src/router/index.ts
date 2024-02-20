@@ -30,7 +30,7 @@ apirouter.get("/user", authenticate, handleUserGet);
 
 apirouter.get("/event", handleEventGet);
 
-apirouter.post("/register", authenticate, handleEventRegister);
+apirouter.post("/registerevent", authenticate, handleEventRegister);
 
 apirouter.get("/isauthenticated", authenticate, (req, res) => {
   const user = res.locals.context;

@@ -25,7 +25,7 @@ export async function handleUserSignup(
     const { email, password, name, mobile, university, rollno } =
       signupUserSchema.parse(req.body);
 
-    const user = await prisma.user.findFirst({
+    let user = await prisma.user.findFirst({
       where: { email },
     });
 
@@ -35,7 +35,7 @@ export async function handleUserSignup(
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await prisma.user.create({
+    user = await prisma.user.create({
       data: {
         name,
         email,
@@ -46,9 +46,14 @@ export async function handleUserSignup(
       },
     });
 
+    const { password: _, createdAt, mobile: __, ...restUser } = user;
     return res
       .status(201)
-      .json({ status: "success", message: "Successfully Signed Up" });
+      .json({
+        status: "success",
+        message: "Successfully Signed Up",
+        user: restUser,
+      });
   } catch (error) {
     console.error(error);
     handleUserSignupError(res, error);
@@ -429,9 +434,21 @@ export async function handleEventRegister(
       )
     );
 
-    console.log(eventTransaction);
+    const user = await prisma.user.findUnique({
+      where: {
+        email: currentUser,
+      },
+      include: {
+        event: true,
+      },
+    });
 
-    res.status(200).json({ status: "success" });
+    if (!user) {
+      throw new Error();
+    }
+    const { password: _, createdAt, mobile, ...restUser } = user;
+
+    return res.status(200).json({ status: "success", user: restUser });
   } catch (error: any) {
     console.error(error);
     if (error.code === "P2002") {
