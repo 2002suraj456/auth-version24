@@ -13,9 +13,39 @@ import {
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { randomInt } from "crypto";
-import client from "../../../db/redis";
 import { z } from "zod";
 import { transport } from "../../nodemailer";
+
+import Email from "../../utils/email";
+import crypto from "crypto";
+
+async function createToken(str: string, userId: number): Promise<string> {
+  const token = crypto.randomBytes(32).toString("hex");
+  const hashedToken = await crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
+
+  let updateData = {};
+
+  if (str === "passwordReset") {
+    updateData = {
+      passwordResetToken: hashedToken,
+      passwordResetExpires: new Date(Date.now() + 15 * 60 * 1000),
+    };
+  } else if (str === "emailConfirmation") {
+    updateData = {
+      emailConfirmationToken: hashedToken,
+    };
+  }
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: updateData,
+  });
+
+  return token;
+}
 
 export async function handleUserSignup(
   req: express.Request,
@@ -59,10 +89,10 @@ export async function handleUserSignup(
     const { password: _, createdAt, mobile: __, ...restUser } = user;
 
     return res.status(200).json({
-        status: "success",
-        message: "Successfully Signed Up",
-        user: restUser,
-      });
+      status: "success",
+      message: "Successfully Signed Up",
+      user: restUser,
+    });
   } catch (error) {
     handleUserSignupError(res, error);
   }
@@ -130,24 +160,20 @@ export async function handleUserGenerateOTP(
       throw new UserNotExistError(email);
     }
 
-    const _otp = randomInt(100000, 999999).toString();
+    const resetToken = await createToken("passwordReset", user.id);
 
-    await client.set(email, _otp);
+    const url = `${req.protocol}://${req.get(
+      "host"
+    )}/resetPassword/${resetToken}`;
 
-    const _mailOpt = {
-      from: '"Version24" <noreply@innovac23.tech>',
-      to: email,
-      subject: "Version 24 Account Recovery",
-      html: `OTP for forget password : ${_otp}`,
-    };
-
-    await transport.sendMail(_mailOpt);
+    await new Email(user, url, email, "Password Reset").sendResetToken;
 
     return res.status(200).send({
       status: "success",
-      message: "OTP sent.",
+      message: "Mail Sent Successfully",
     });
   } catch (err) {
+    console.error(err);
     if (err instanceof UserNotExistError) {
       return res.status(404).send({
         status: "error",
@@ -222,8 +248,6 @@ export async function handleUserResetPassword(
       })
       .parse(req.body);
 
-    const _otp = await client.get(email);
-
     if (otp !== _otp) {
       return res.status(400).send("Wrong OTP");
     }
@@ -282,7 +306,9 @@ export async function handleUserGet(
       });
     }
 
-    return res.status(500).json({ status: "error", message: "Internal server error" });
+    return res
+      .status(500)
+      .json({ status: "error", message: "Internal server error" });
   }
 }
 
@@ -429,15 +455,15 @@ export async function handleEventRegister(
     const eventTransaction = await prisma.$transaction(
       emails.map((email) =>
         prisma.event.create({
-      data: {
+          data: {
             eventName,
             teamName,
             participants: {
               connect: {
                 email,
               },
-        },
-      },
+            },
+          },
         })
       )
     );

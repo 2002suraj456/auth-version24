@@ -15,15 +15,17 @@ async function main() {
   //         }
   //     })
 
-  //   const newUser = await prisma.user.create({
-  //     data: {
-  //         email: "surajsoren456@gmail.com",
-  //         name: "Suraj Soren",
-  //         mobile: "1234567890",
-  //         password: "123456",
-  //         university: "NIT Jamshedpur",
-  //     },
-  //   });
+  const newUser = await prisma.user.create({
+    data: {
+      email: "anuj992393@gmail.com",
+      name: "Anuj Sharma",
+      mobile: "1234567890",
+      password: "123456",
+      university: "NIT Jamshedpur",
+      rollno: "12345", // Add the missing 'rollno' property
+      role: "student", // Add the missing 'role' property
+    },
+  });
   // --------------------------------------------------
   //     const user = await prisma.user.findUnique({
   //       where: {
@@ -93,29 +95,6 @@ async function main() {
   // });
 
   // console.log(user);
-
-  const eventlist = [
-    "CodeBlitz",
-    "Cryptic Coder",
-    "Immerse Craft",
-    "Decode Craft",
-    "Game Fiesta",
-    "Squid Quiz",
-    "Dev Day",
-    "Heads Up",
-    "Cupocalyse Combat",
-    "Map Quest",
-  ];
-
-  await Promise.all(
-    eventlist.map(async (event) => {
-      await prisma.event.create({
-        data: {
-          name: event,
-        },
-      });
-    })
-  );
 }
 
 main()
