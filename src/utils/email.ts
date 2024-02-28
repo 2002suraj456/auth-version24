@@ -58,7 +58,7 @@
 
 import nodemailer, { Transporter } from "nodemailer";
 import pug from "pug";
-import htmlToText from "html-to-text";
+import { convert } from "html-to-text";
 
 interface User {
   name: string;
@@ -81,15 +81,10 @@ export default class Email {
 
   private newTransport(): Transporter {
     return nodemailer.createTransport({
-      host: process.env.EMAIL_HOST!,
-      port: Number(process.env.EMAIL_PORT),
-      secure: false,
+      host: process.env.NODEMAILER_HOST,
       auth: {
-        user: process.env.EMAIL_USERNAME!,
-        pass: process.env.EMAIL_PASSWORD!,
-      },
-      tls: {
-        ciphers: "SSLv3",
+        user: process.env.NODEMAILER_USER,
+        pass: process.env.NODEMAILER_PASS,
       },
     });
   }
@@ -108,7 +103,7 @@ export default class Email {
       to: this.to,
       subject,
       html,
-      text: htmlToText.convert(html),
+      text: convert(html),
     };
 
     // Create transport and send email

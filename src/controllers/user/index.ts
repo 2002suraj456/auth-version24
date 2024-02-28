@@ -31,7 +31,7 @@ async function createToken(str: string, userId: number): Promise<string> {
   if (str === "passwordReset") {
     updateData = {
       passwordResetToken: hashedToken,
-      passwordResetExpires: new Date(Date.now() + 15 * 60 * 1000),
+      passwordResetTokenExpiry: new Date(Date.now() + 15 * 60 * 1000),
     };
   } else if (str === "emailConfirmation") {
     updateData = {
@@ -166,7 +166,7 @@ export async function handleUserGenerateOTP(
       "host"
     )}/resetPassword/${resetToken}`;
 
-    await new Email(user, url, email, "Password Reset").sendResetToken;
+    await new Email(user, url, email, "Password Reset").sendResetToken();
 
     return res.status(200).send({
       status: "success",

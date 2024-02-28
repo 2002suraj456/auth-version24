@@ -1,0 +1,17 @@
+extends baseEmail
+
+block content  
+  p Hi,
+    p=`We're glad to tell you that ${firstName} has invited to join ${grpName}.`
+    p We are sharing a link from which you can directly join the room!! Hope you to see there.
+    table.btn.btn-primary(role='presentation', border='0', cellpadding='0', cellspacing='0')
+      tbody
+        tr
+          td(align='left')
+            table(role='presentation', border='0', cellpadding='0', cellspacing='0')
+              tbody
+                tr
+                  td
+                    a(href=`${url}`, target='_blank')= `Click here to join ${grpName}`
+    p If you need any help!! Please don't hesisate to contact us!!
+    p - Anuj Sharma, Developer
