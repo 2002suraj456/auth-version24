@@ -2,8 +2,7 @@ import { Router } from "express";
 import {
   handleUserSignup,
   handleUserLogin,
-  handleUserGenerateOTP,
-  handleUserVerifyOTP,
+  handleForgetPassword,
   handleUserResetPassword,
   handleUserGet,
   handleEventGet,
@@ -20,9 +19,7 @@ apirouter.post("/login", handleUserLogin);
 
 apirouter.post("/signup", handleUserSignup);
 
-apirouter.post("/generateotp", handleUserGenerateOTP);
-
-apirouter.post("/verifyotp", handleUserVerifyOTP);
+apirouter.post("/forgetpassword", handleForgetPassword);
 
 apirouter.post("/resetpassword", handleUserResetPassword);
 

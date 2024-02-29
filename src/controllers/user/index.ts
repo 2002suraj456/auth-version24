@@ -76,22 +76,24 @@ export async function handleUserSignup(
       },
     });
 
-    const JWTtoken = jwt.sign({ email }, process.env.SECRET_KEY as string, {
-      expiresIn: process.env.JWT_EXPIRES_IN,
-    });
+    const emailConfirmationToken = await createToken(
+      "emailConfirmation",
+      user.id
+    );
 
-    res.cookie("jwt", JWTtoken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: Number(process.env.JWT_EXPIRES_IN),
-    });
+    const url = `${req.protocol}://${req.hostname}/confirmEmail/${emailConfirmationToken}`;
 
-    const { password: _, createdAt, mobile: __, ...restUser } = user;
+    if (process.env.N)
+      await new Email(
+        user,
+        url,
+        email,
+        "Account Confirmation"
+      ).sendAccountConfirmation();
 
     return res.status(200).json({
       status: "success",
       message: "Successfully Signed Up",
-      user: restUser,
     });
   } catch (error) {
     handleUserSignupError(res, error);
@@ -119,6 +121,14 @@ export async function handleUserLogin(
       throw new UserPasswordIncorrectError(email);
     }
 
+    if (!user.isEmailConfirmed) {
+      return res.status(403).json({
+        status: "error",
+        tag: "emailNotConfirmed",
+        message: "Email not confirmed",
+      });
+    }
+
     const JWTtoken = jwt.sign({ email }, process.env.SECRET_KEY as string, {
       expiresIn: process.env.JWT_EXPIRES_IN,
     });
@@ -126,7 +136,7 @@ export async function handleUserLogin(
     res.cookie("jwt", JWTtoken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: Number(process.env.JWT_EXPIRES_IN),
+      maxAge: Number(process.env.JWT_EXPIRES_IN) * 60 * 60 * 24 * 1000,
     });
 
     const { password: _, createdAt, mobile, ...restUser } = user;
@@ -137,11 +147,12 @@ export async function handleUserLogin(
       user: restUser,
     });
   } catch (err) {
+    console.log(err);
     handleUserLoginError(res, err);
   }
 }
 
-export async function handleUserGenerateOTP(
+export async function handleForgetPassword(
   req: express.Request,
   res: express.Response
 ) {
@@ -162,9 +173,7 @@ export async function handleUserGenerateOTP(
 
     const resetToken = await createToken("passwordReset", user.id);
 
-    const url = `${req.protocol}://${req.get(
-      "host"
-    )}/resetPassword/${resetToken}`;
+    const url = `${req.protocol}://${req.hostname}/resetPassword/${resetToken}`;
 
     await new Email(user, url, email, "Password Reset").sendResetToken();
 
@@ -195,64 +204,42 @@ export async function handleUserGenerateOTP(
   }
 }
 
-export async function handleUserVerifyOTP(
-  req: express.Request,
-  res: express.Response
-) {
-  try {
-    const { otp, email } = z
-      .object({
-        otp: z.string().length(6, "OTP must be 6 digit"),
-        email: z.string().email("Invalid email format."),
-      })
-      .parse(req.body);
-
-    const _otp = await client.get(email);
-
-    if (otp === _otp) {
-      return res.status(200).send({
-        status: "success",
-        message: "OTP verified successfully",
-      });
-    } else {
-      return res.status(400).send({
-        status: "error",
-        message: "Wrong OTP",
-      });
-    }
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).send({
-        status: "error",
-        message: err.errors[0].message,
-      });
-    }
-
-    return res.status(500).send({
-      status: "error",
-      message: "Internal server error",
-    });
-  }
-}
-
 export async function handleUserResetPassword(
   req: express.Request,
   res: express.Response
 ) {
   try {
-    const { email, password, otp } = z
+    const { password, resetToken } = z
       .object({
-        email: z.string().email("Invalid email format."),
         password: z.string().min(8, "Too small password").max(100),
-        otp: z.string().length(6, "OTP must be 6 digit"),
+        resetToken: z.string(),
       })
       .parse(req.body);
 
-    if (otp !== _otp) {
-      return res.status(400).send("Wrong OTP");
+    const hashedToken = await crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    const user = await prisma.user.findFirst({
+      where: {
+        passwordResetToken: hashedToken,
+        passwordResetTokenExpiry: {
+          gte: new Date(),
+        },
+      },
+    });
+
+    if (!user) {
+      res.status(403).json({
+        status: "error",
+        message: "Reset Token has expired or its invalid",
+      });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    const email = user?.email;
 
     await prisma.user.update({
       where: { email },
@@ -264,6 +251,7 @@ export async function handleUserResetPassword(
       message: "Password updated successfully",
     });
   } catch (error) {
+    console.log(error);
     if (error instanceof z.ZodError) {
       return res.status(400).send({
         status: "error",
