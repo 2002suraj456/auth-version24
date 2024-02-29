@@ -12,9 +12,7 @@ import {
 } from "./error";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { randomInt } from "crypto";
 import { z } from "zod";
-import { transport } from "../../nodemailer";
 
 import Email from "../../utils/email";
 import crypto from "crypto";
