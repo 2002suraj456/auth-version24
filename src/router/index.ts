@@ -25,7 +25,7 @@ apirouter.post("/forgetpassword", handleForgetPassword);
 
 apirouter.post("/resetpassword", handleUserResetPassword);
 
-apirouter.get("/checkuser", handleCheckUser);
+apirouter.post("/checkuser", handleCheckUser);
 
 apirouter.post("/confirmemail", handleConfirmEmail);
 
