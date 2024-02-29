@@ -81,13 +81,12 @@ export async function handleUserSignup(
 
     const url = `${req.protocol}://${req.hostname}/confirmEmail/${emailConfirmationToken}`;
 
-    if (process.env.N)
-      await new Email(
-        user,
-        url,
-        email,
-        "Account Confirmation"
-      ).sendAccountConfirmation();
+    await new Email(
+      user,
+      url,
+      email,
+      "Account Confirmation"
+    ).sendAccountConfirmation();
 
     return res.status(200).json({
       status: "success",
@@ -129,7 +128,7 @@ export async function handleConfirmEmail(
 
     return res.status(200).send({
       status: "success",
-      message: "Password Confirmed successfully",
+      message: "Email Confirmed successfully",
     });
   } catch (error) {
     console.log(error);
@@ -275,6 +274,18 @@ export async function handleUserResetPassword(
           gte: new Date(),
         },
       },
+    });
+
+    if (!user) {
+      return res.status(403).json({
+        status: "error",
+        message: "Reset Token has expired or its invalid",
+      });
+    }
+
+    await prisma.user.update({
+      where: { email: user?.email },
+      data: { passwordResetToken: "" },
     });
 
     if (!user) {
@@ -535,6 +546,9 @@ export async function handleEventRegister(
     if (error instanceof UserSpecificError) {
       return res.status(400).json({ status: "error", message: error.message });
     }
+
+    console.log(error);
+
     return res
       .status(500)
       .json({ status: "error", message: "Internal server error" });
