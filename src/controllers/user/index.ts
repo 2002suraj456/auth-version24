@@ -33,7 +33,7 @@ async function createToken(str: string, userId: number): Promise<string> {
     };
   } else if (str === "emailConfirmation") {
     updateData = {
-      emailConfirmationToken: hashedToken,
+      emailToken: hashedToken,
     };
   }
 
