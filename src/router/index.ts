@@ -8,6 +8,7 @@ import {
   handleEventGet,
   authenticate,
   handleEventRegister,
+  handleConfirmEmail,
 } from "../controllers/user";
 
 const apirouter = Router();
@@ -22,6 +23,8 @@ apirouter.post("/signup", handleUserSignup);
 apirouter.post("/forgetpassword", handleForgetPassword);
 
 apirouter.post("/resetpassword", handleUserResetPassword);
+
+apirouter.post("/confirmemail", handleConfirmEmail);
 
 apirouter.get("/user", authenticate, handleUserGet);
 

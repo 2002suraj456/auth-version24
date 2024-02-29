@@ -98,6 +98,55 @@ export async function handleUserSignup(
   }
 }
 
+export async function handleConfirmEmail(
+  req: express.Request,
+  res: express.Response
+) {
+  try {
+    const { emailConfirmToken } = z
+      .object({
+        emailConfirmToken: z.string(),
+      })
+      .parse(req.body);
+
+    const hashedToken = await crypto
+      .createHash("sha256")
+      .update(emailConfirmToken)
+      .digest("hex");
+
+    const user = await prisma.user.findFirst({
+      where: {
+        emailToken: hashedToken,
+      },
+    });
+
+    const email = user?.email;
+
+    await prisma.user.update({
+      where: { email },
+      data: { isEmailConfirmed: true },
+    });
+
+    return res.status(200).send({
+      status: "success",
+      message: "Password Confirmed successfully",
+    });
+  } catch (error) {
+    console.log(error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).send({
+        status: "error",
+        message: error.errors[0].message,
+      });
+    }
+
+    return res.status(500).send({
+      status: "error",
+      message: "Internal server error",
+    });
+  }
+}
+
 export async function handleUserLogin(
   req: express.Request,
   res: express.Response
