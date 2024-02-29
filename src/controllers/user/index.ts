@@ -63,7 +63,7 @@ export async function handleCheckUser(
     if (!user) {
       return res.status(404).send({
         status: "error",
-        message: "User does not exist",
+        message: "This User is not registered on Version.",
       });
     } else {
       return res.status(200).send({
