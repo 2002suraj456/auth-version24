@@ -45,6 +45,40 @@ async function createToken(str: string, userId: number): Promise<string> {
   return token;
 }
 
+export async function handleCheckUser(
+  req: express.Request,
+  res: express.Response
+) {
+  try {
+    const { email } = z
+      .object({
+        email: z.string(),
+      })
+      .parse(req.body);
+
+    let user = await prisma.user.findFirst({
+      where: { email },
+    });
+
+    if (!user) {
+      return res.status(404).send({
+        status: "error",
+        message: "User does not exist",
+      });
+    } else {
+      return res.status(200).send({
+        status: "success",
+        message: "User exists",
+      });
+    }
+  } catch (error: any) {
+    return res.status(400).send({
+      status: "error",
+      message: error.errors[0].message,
+    });
+  }
+}
+
 export async function handleUserSignup(
   req: express.Request,
   res: express.Response
