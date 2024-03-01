@@ -33,6 +33,8 @@ model User {
 
   passwordResetTokenExpiry DateTime?
 
+  passwordChangedAt DateTime?
+
   createdAt DateTime @default(now())
 
   id Int @default(autoincrement())

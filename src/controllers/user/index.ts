@@ -29,7 +29,7 @@ async function createToken(str: string, userId: number): Promise<string> {
   if (str === "passwordReset") {
     updateData = {
       passwordResetToken: hashedToken,
-      passwordResetTokenExpiry: new Date(Date.now() + 15 * 60 * 1000),
+      passwordResetTokenExpiry: new Date(Date.now() + 10 * 60 * 1000),
     };
   } else if (str === "emailConfirmation") {
     updateData = {
@@ -127,6 +127,7 @@ export async function handleUserSignup(
       message: "Successfully Signed Up",
     });
   } catch (error) {
+    console.log(error);
     handleUserSignupError(res, error);
   }
 }
@@ -209,14 +210,19 @@ export async function handleUserLogin(
       });
     }
 
+    const expiresTimeInMs =
+      Number(process.env.JWT_EXPIRES_IN) * 60 * 60 * 24 * 1000;
+
     const JWTtoken = jwt.sign({ email }, process.env.SECRET_KEY as string, {
-      expiresIn: process.env.JWT_EXPIRES_IN,
+      expiresIn: expiresTimeInMs,
     });
 
     res.cookie("jwt", JWTtoken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: Number(process.env.JWT_EXPIRES_IN) * 60 * 60 * 24 * 1000,
+      maxAge: expiresTimeInMs,
+
+      // maxAge: Number(process.env.JWT_EXPIRES_IN) * 30 * 1000,
     });
 
     const { password: _, createdAt, mobile, ...restUser } = user;
@@ -319,7 +325,7 @@ export async function handleUserResetPassword(
 
     await prisma.user.update({
       where: { email: user?.email },
-      data: { passwordResetToken: "" },
+      data: { passwordResetToken: "", passwordChangedAt: new Date() },
     });
 
     if (!user) {
@@ -494,6 +500,24 @@ export async function authenticate(
       }
       res.locals.context = decoded;
     });
+
+    // Check if user has changed password after the token was issued
+    const email = res.locals.context.email;
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new UserNotExistError(email);
+    }
+
+    if (user.passwordChangedAt) {
+      const changedTimestamp = user.passwordChangedAt.getTime() / 1000;
+      if (changedTimestamp > res.locals.context.iat) {
+        throw new UserTokenInvalidError();
+      }
+    }
+
     next();
   } catch (err) {
     if (err instanceof UserTokenInvalidError) {
