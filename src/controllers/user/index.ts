@@ -482,8 +482,11 @@ export async function authenticate(
 ) {
   try {
     const cookie = req.headers.cookie;
+
     let _jwttoken;
+
     cookie?.split(";").forEach((cookie) => {
+      cookie = cookie.trim();
       if (cookie.startsWith("jwt")) {
         _jwttoken = cookie.split("=")[1];
         return;
