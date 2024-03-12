@@ -555,6 +555,17 @@ export async function handleEventRegister(
       throw new UserSpecificError("Team name is required");
     }
 
+    const teamNameExists = await prisma.event.findFirst({
+      where: {
+        eventName,
+        teamName,
+      },
+    });
+
+    if (teamNameExists) {
+      throw new UserSpecificError("Team name already exists");
+    }
+
     if (!emails.includes(currentUser)) {
       throw new UserSpecificError("You must be in the team");
     }

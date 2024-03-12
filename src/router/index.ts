@@ -12,6 +12,15 @@ import {
   handleCheckUser,
 } from "../controllers/user";
 
+import {
+  getAllUsers,
+  getEventsRegistration,
+  restrictToAdmin,
+  deleteUser,
+  registerUserForEvent,
+  deleteEventRegistration,
+} from "../controllers/user/admin";
+
 const apirouter = Router();
 
 apirouter.get("/test", (req, res) => {
@@ -38,5 +47,14 @@ apirouter.post("/registerevent", authenticate, handleEventRegister);
 apirouter.get("/isauthenticated", authenticate, (req, res) => {
   res.status(200).json({ status: "success" });
 });
+
+apirouter.use(authenticate);
+apirouter.use(restrictToAdmin);
+
+apirouter.get("/admin/eventRegistrations", getEventsRegistration);
+apirouter.get("/admin/users", getAllUsers);
+apirouter.delete("/admin/user", deleteUser);
+apirouter.post("/admin/eventRegistration", registerUserForEvent);
+apirouter.delete("/admin/eventRegistration", deleteEventRegistration);
 
 export default apirouter;
