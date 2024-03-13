@@ -555,7 +555,7 @@ export async function handleEventRegister(
       throw new UserSpecificError("Team name is required");
     }
 
-    if (teamName !== null || teamName !== undefined || teamName !== "") {
+    if (teamName !== null && teamName !== undefined && teamName !== "") {
       const teamNameExists = await prisma.event.findFirst({
         where: {
           eventName,
