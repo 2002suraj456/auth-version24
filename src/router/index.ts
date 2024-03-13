@@ -51,7 +51,7 @@ apirouter.get("/isauthenticated", authenticate, (req, res) => {
 apirouter.use(authenticate);
 apirouter.use(restrictToAdmin);
 
-apirouter.get("/admin/eventRegistrations", getEventsRegistration);
+apirouter.post("/admin/eventRegistrations", getEventsRegistration);
 apirouter.get("/admin/users", getAllUsers);
 apirouter.delete("/admin/user", deleteUser);
 apirouter.post("/admin/eventRegistration", registerUserForEvent);
