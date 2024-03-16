@@ -20,6 +20,7 @@ import {
   registerUserForEvent,
   deleteEventRegistration,
 } from "../controllers/user/admin";
+import prisma from "../../db/prisma";
 
 const apirouter = Router();
 
@@ -44,8 +45,19 @@ apirouter.get("/event", handleEventGet);
 
 apirouter.post("/registerevent", authenticate, handleEventRegister);
 
-apirouter.get("/isauthenticated", authenticate, (req, res) => {
-  res.status(200).json({ status: "success" });
+apirouter.get("/isauthenticated", authenticate, async (req, res) => {
+  const email = res.locals.context.email;
+  const user = await prisma.user.findUnique({
+    where: {
+      email,
+    },
+  });
+
+  if (!user) {
+    return res.status(401).json({ status: "error", message: "User not found" });
+  }
+
+  res.status(200).json({ status: "success", data: user });
 });
 
 apirouter.use(authenticate);
