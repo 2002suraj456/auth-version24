@@ -223,6 +223,7 @@ export async function handleUserLogin(
       maxAge: expiresTimeInMs,
 
       // maxAge: Number(process.env.JWT_EXPIRES_IN) * 30 * 1000,
+      domain: ".version24.in",
     });
 
     const { password: _, createdAt, mobile, ...restUser } = user;
