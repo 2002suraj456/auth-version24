@@ -2,9 +2,9 @@ import express from "express";
 import apirouter from "./src/router";
 const app = express();
 
-import cors from "cors";
+// import cors from "cors";
 
-app.use(cors());
+// app.use(cors());
 
 app.use(express.json());
 
