@@ -51,6 +51,28 @@ apirouter.get("/isauthenticated", authenticate, async (req, res) => {
     where: {
       email,
     },
+    select: {
+      email: true,
+      name: true,
+      password: false,
+      university: true,
+      mobile: true,
+      rollno: true,
+      role: false,
+      isEmailConfirmed: true,
+      emailToken: false,
+      passwordResetToken: false,
+      passwordResetTokenExpiry: false,
+      passwordChangedAt: false,
+      createdAt: false,
+      id: true,
+      event: {
+        select: {
+          eventName: true,
+          teamName: true,
+        },
+      },
+    },
   });
 
   if (!user) {

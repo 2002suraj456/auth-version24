@@ -87,29 +87,35 @@ export async function getAllUsers(req: express.Request, res: express.Response) {
 
 export async function deleteUser(req: express.Request, res: express.Response) {
   try {
-    const email = req.body.email as string;
+    const emails = req.body.emails as string[];
 
-    if (!email) {
+    if (emails.length === 0) {
       throw new UserSpecificError("Email is required");
     }
 
-    await prisma.user.delete({
+    // Delete users for multiple emails
+    await prisma.user.deleteMany({
       where: {
-        email,
+        email: {
+          in: emails,
+        },
       },
     });
 
+    // Delete events for participants with multiple emails
     await prisma.event.deleteMany({
       where: {
         participants: {
-          email,
+          email: {
+            in: emails,
+          },
         },
       },
     });
 
     res.status(200).json({
       status: "success",
-      message: "User deleted",
+      message: "Users deleted",
     });
   } catch (err) {
     console.log(err);
@@ -192,15 +198,17 @@ export async function registerUserForEvent(
       throw new UserSpecificError("Team name is required");
     }
 
-    const teamNameExists = await prisma.event.findFirst({
-      where: {
-        eventName,
-        teamName,
-      },
-    });
+    if (teamName !== null && teamName !== undefined && teamName !== "") {
+      const teamNameExists = await prisma.event.findFirst({
+        where: {
+          eventName,
+          teamName,
+        },
+      });
 
-    if (teamNameExists) {
-      throw new UserSpecificError("Team name already exists");
+      if (teamNameExists) {
+        throw new UserSpecificError("Team name already exists");
+      }
     }
 
     const eventTransaction = await prisma.$transaction(
@@ -241,29 +249,20 @@ export async function deleteEventRegistration(
 ) {
   try {
     const eventName = req.body.eventName as string;
-    const email = req.body.email as string;
+    const emails = req.body.emails as string[];
+    const teamNames = req.body.teamNames as string[];
 
-    if (!eventName || !email) {
+    if (!eventName || !emails) {
       throw new UserSpecificError("Event name and email are required");
     }
 
-    const teamName = await prisma.event.findFirst({
-      where: {
-        eventName,
-        participants: {
-          email,
-        },
-      },
-      select: {
-        teamName: true,
-      },
-    });
-
-    if (teamName) {
+    if (teamNames && teamNames.length > 0) {
       await prisma.event.deleteMany({
         where: {
           eventName,
-          teamName: teamName.teamName,
+          teamName: {
+            in: teamNames,
+          },
         },
       });
     } else {
@@ -271,12 +270,13 @@ export async function deleteEventRegistration(
         where: {
           eventName,
           participants: {
-            email,
+            email: {
+              in: emails,
+            },
           },
         },
       });
     }
-
     res.status(200).json({
       status: "success",
       message: "Event registration deleted",
