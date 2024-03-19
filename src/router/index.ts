@@ -16,9 +16,9 @@ import {
   getAllUsers,
   getEventsRegistration,
   restrictToAdmin,
-  deleteUser,
+  deleteUsers,
   registerUserForEvent,
-  deleteEventRegistration,
+  deleteEventRegistrations,
 } from "../controllers/user/admin";
 import prisma from "../../db/prisma";
 
@@ -28,6 +28,10 @@ apirouter.get("/test", (req, res) => {
   res.send("test");
 });
 apirouter.post("/login", handleUserLogin);
+apirouter.get("/logout", (req, res) => {
+  res.clearCookie("jwt");
+  res.status(200).json({ status: "success" });
+});
 
 apirouter.post("/signup", handleUserSignup);
 
@@ -58,7 +62,7 @@ apirouter.get("/isauthenticated", authenticate, async (req, res) => {
       university: true,
       mobile: true,
       rollno: true,
-      role: false,
+      role: true,
       isEmailConfirmed: true,
       emailToken: false,
       passwordResetToken: false,
@@ -87,8 +91,8 @@ apirouter.use(restrictToAdmin);
 
 apirouter.post("/admin/eventRegistrations", getEventsRegistration);
 apirouter.get("/admin/users", getAllUsers);
-apirouter.delete("/admin/user", deleteUser);
+apirouter.delete("/admin/users", deleteUsers);
 apirouter.post("/admin/eventRegistration", registerUserForEvent);
-apirouter.delete("/admin/eventRegistration", deleteEventRegistration);
+apirouter.delete("/admin/eventRegistration", deleteEventRegistrations);
 
 export default apirouter;

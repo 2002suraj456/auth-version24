@@ -85,7 +85,7 @@ export async function getAllUsers(req: express.Request, res: express.Response) {
   }
 }
 
-export async function deleteUser(req: express.Request, res: express.Response) {
+export async function deleteUsers(req: express.Request, res: express.Response) {
   try {
     const emails = req.body.emails as string[];
 
@@ -93,14 +93,23 @@ export async function deleteUser(req: express.Request, res: express.Response) {
       throw new UserSpecificError("Email is required");
     }
 
-    // Delete users for multiple emails
-    await prisma.user.deleteMany({
+    // find the teamNames of the users in the event table
+    const teamNames = await prisma.event.findMany({
       where: {
-        email: {
-          in: emails,
+        participants: {
+          email: {
+            in: emails,
+          },
         },
       },
+      select: {
+        teamName: true,
+      },
     });
+
+    let teamNamesArr = teamNames.map((el) => el.teamName);
+
+    teamNamesArr = teamNamesArr.filter((el) => el !== null);
 
     // Delete events for participants with multiple emails
     await prisma.event.deleteMany({
@@ -109,6 +118,24 @@ export async function deleteUser(req: express.Request, res: express.Response) {
           email: {
             in: emails,
           },
+        },
+      },
+    });
+
+    // Delete eventReg with this teamNames
+    await prisma.event.deleteMany({
+      where: {
+        teamName: {
+          in: teamNamesArr,
+        },
+      },
+    });
+
+    // Delete users for multiple emails
+    await prisma.user.deleteMany({
+      where: {
+        email: {
+          in: emails,
         },
       },
     });
@@ -232,18 +259,30 @@ export async function registerUserForEvent(
       message: "User registered for event",
       data: eventTransaction,
     });
-  } catch (err) {
-    console.log(err);
+  } catch (error: any) {
+    if (error.code === "P2002") {
+      return res
+        .status(400)
+        .json({ status: "error", message: "Teammates already registered" });
+    }
 
-    const msg = err?.message || "Something went wrong";
-    res.status(500).json({
-      status: "error",
-      message: msg,
-    });
+    if (error instanceof z.ZodError) {
+      return res
+        .status(400)
+        .json({ status: "error", message: error.errors[0].message });
+    }
+
+    if (error instanceof UserSpecificError) {
+      return res.status(400).json({ status: "error", message: error.message });
+    }
+
+    return res
+      .status(500)
+      .json({ status: "error", message: "Internal server error" });
   }
 }
 
-export async function deleteEventRegistration(
+export async function deleteEventRegistrations(
   req: express.Request,
   res: express.Response
 ) {
