@@ -35,12 +35,14 @@
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "express": "^4.18.2",
+    "helmet": "^7.1.0",
     "html-to-text": "^9.0.5",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.9.9",
     "pug": "^3.0.2",
     "redis": "^4.6.12",
     "sqlite": "^5.1.1",
+    "xss": "^1.0.15",
     "zod": "^3.22.4"
   }
 }
